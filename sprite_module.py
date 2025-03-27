@@ -13,7 +13,7 @@ class StatusBar(pygame.sprite.Sprite):
         self.__colors=[color1,color2]
         self.__size=size
         self.__s1=status1 #current status value
-        self.__s2=float(status2) #total status value
+        self.__s2=float(status2) if status2 != 0 else 1  # Prevent division by zero
         self.__m=size[0]/(self.__s2/self.__s2*100) #multipler
         self.__type=type
         self.__increase=increase
@@ -65,7 +65,10 @@ class Text(pygame.sprite.Sprite):
     def __init__(self,size,color,position,variables,message,alpha):
         '''accepts size,color,position,variables,message and alpha'''
         pygame.sprite.Sprite.__init__(self)
-        self.__font = pygame.font.Font("American Captain.ttf", size)
+        try:
+            self.__font = pygame.font.Font("American Captain.ttf", size)
+        except FileNotFoundError:
+            self.__font = pygame.font.SysFont(None, size)  # Use default font if file is missing
         self.__color=color
         self.__position=position
         
@@ -89,7 +92,7 @@ class Text(pygame.sprite.Sprite):
         if self.__variables:
             #string formating using zip to create a tuple from list
             self.__m = self.__message %\
-                    (zip(*[iter(self.__variables)]*len(self.__variables))[0])
+                    (list(zip(*[iter(self.__variables)]*len(self.__variables)))[0])
         else:
             self.__m=self.__message
             
@@ -447,4 +450,3 @@ class Powerup(pygame.sprite.Sprite):
         elif self.__count>=300:
             self.image.set_alpha(self.__alpha)
             self.__alpha-=3
-    
