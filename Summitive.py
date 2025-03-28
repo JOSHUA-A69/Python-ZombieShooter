@@ -1,5 +1,5 @@
 # I - Import and Initialize
-import pygame,pygame.locals,sprite_module,random,os
+import pygame, pygame.locals, sprite_module, random, os
 pygame.init()
 pygame.mixer.init()
 screen = pygame.display.set_mode((1280, 720))  
@@ -14,14 +14,29 @@ def game_over_screen(screen):
 
     # Load game over background image and sound
     game_over_bg = pygame.transform.scale(pygame.image.load('GameOverBG.png'), (1280, 720))
-    pygame.mixer.music.load("./sound/gameover.mp3")
+    pygame.mixer.music.load("./sound/gameover.ogg")
     pygame.mixer.music.set_volume(0.5)
     pygame.mixer.music.play(-1)
+
+    # Load hover and click sounds
+    hover_sound = pygame.mixer.Sound("./sound/Button hover.ogg")
+    click_sound = pygame.mixer.Sound("./sound/Button click.mp3")
+    hovered = False  # Track hover state
 
     while True:
         screen.blit(game_over_bg, (0, 0))  # Display game over background
         screen.blit(game_over_text, (screen.get_width() // 2 - game_over_text.get_width() // 2, screen.get_height() // 2 - 150))
-        pygame.draw.rect(screen, (139, 69, 19), retry_rect.inflate(30, 15))  # Apocalyptic button style
+
+        # Check for hover effect
+        if retry_rect.collidepoint(pygame.mouse.get_pos()):
+            if not hovered:
+                hover_sound.play()  # Play hover sound only once
+                hovered = True
+            pygame.draw.rect(screen, (255, 215, 0), retry_rect.inflate(30, 15))  # Toggle button style
+        else:
+            hovered = False
+            pygame.draw.rect(screen, (139, 69, 19), retry_rect.inflate(30, 15))  # Default button style
+
         screen.blit(retry_text, retry_rect)
 
         for event in pygame.event.get():
@@ -29,8 +44,9 @@ def game_over_screen(screen):
                 pygame.quit()
                 exit()
             elif event.type == pygame.MOUSEBUTTONDOWN and retry_rect.collidepoint(event.pos):
+                click_sound.play()  # Play click sound
                 pygame.mixer.music.stop()  # Stop game over music
-                return  # Exit the game over screen and resume the game
+                return  # Exit the game over screen and restart the game
 
         pygame.display.flip()
 
@@ -57,10 +73,25 @@ def main_menu(screen):
     pygame.mixer.music.set_volume(0.5)
     pygame.mixer.music.play(-1)
 
+    # Load hover and click sounds
+    hover_sound = pygame.mixer.Sound("./sound/Button hover.ogg")
+    click_sound = pygame.mixer.Sound("./sound/Button click.mp3")
+    hovered = False  # Track hover state
+
     while True:
         screen.blit(menu_bg, (0, 0))  # Display menu background
         screen.blit(title_text, (screen.get_width() // 2 - title_text.get_width() // 2, screen.get_height() // 2 - 100))
-        pygame.draw.rect(screen, (139, 69, 19), classic_rect.inflate(30, 15))  # Apocalyptic button style
+
+        # Check for hover effect
+        if classic_rect.collidepoint(pygame.mouse.get_pos()):
+            if not hovered:
+                hover_sound.play()  # Play hover sound only once
+                hovered = True
+            pygame.draw.rect(screen, (255, 215, 0), classic_rect.inflate(30, 15))  # Toggle button style
+        else:
+            hovered = False
+            pygame.draw.rect(screen, (139, 69, 19), classic_rect.inflate(30, 15))  # Default button style
+
         screen.blit(classic_text, classic_rect)
 
         for event in pygame.event.get():
@@ -68,6 +99,7 @@ def main_menu(screen):
                 pygame.quit()
                 exit()
             elif event.type == pygame.MOUSEBUTTONDOWN and classic_rect.collidepoint(event.pos):
+                click_sound.play()  # Play click sound
                 pygame.mixer.music.stop()  # Stop menu music
                 loading_screen(screen)  # Show loading screen before starting the game
                 return  # Start the game
@@ -84,12 +116,38 @@ def pause_menu(screen):
     resume_rect = resume_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
     menu_rect = menu_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 + 100))
 
+    # Load hover and click sounds
+    hover_sound = pygame.mixer.Sound("./sound//Button hover.ogg")
+    click_sound = pygame.mixer.Sound("./sound//Button click.mp3")
+    hovered_resume = False  # Track hover state for Resume button
+    hovered_menu = False  # Track hover state for Main Menu button
+
     while True:
         screen.fill((0, 0, 0))
         screen.blit(pause_text, (screen.get_width() // 2 - pause_text.get_width() // 2, screen.get_height() // 2 - 150))
-        pygame.draw.rect(screen, (139, 69, 19), resume_rect.inflate(30, 15))  # Apocalyptic button style
+
+        # Check for hover effect on Resume button
+        if resume_rect.collidepoint(pygame.mouse.get_pos()):
+            if not hovered_resume:
+                hover_sound.play()  # Play hover sound only once
+                hovered_resume = True
+            pygame.draw.rect(screen, (255, 215, 0), resume_rect.inflate(30, 15))  # Toggle button style
+        else:
+            hovered_resume = False
+            pygame.draw.rect(screen, (139, 69, 19), resume_rect.inflate(30, 15))  # Default button style
+
         screen.blit(resume_text, resume_rect)
-        pygame.draw.rect(screen, (139, 69, 19), menu_rect.inflate(30, 15))  # Apocalyptic button style
+
+        # Check for hover effect on Main Menu button
+        if menu_rect.collidepoint(pygame.mouse.get_pos()):
+            if not hovered_menu:
+                hover_sound.play()  # Play hover sound only once
+                hovered_menu = True
+            pygame.draw.rect(screen, (255, 215, 0), menu_rect.inflate(30, 15))  # Toggle button style
+        else:
+            hovered_menu = False
+            pygame.draw.rect(screen, (139, 69, 19), menu_rect.inflate(30, 15))  # Default button style
+
         screen.blit(menu_text, menu_rect)
 
         for event in pygame.event.get():
@@ -98,8 +156,10 @@ def pause_menu(screen):
                 exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if resume_rect.collidepoint(event.pos):
+                    click_sound.play()  # Play click sound
                     return  # Resume the game
                 elif menu_rect.collidepoint(event.pos):
+                    click_sound.play()  # Play click sound
                     main_menu(screen)  # Go back to the main menu
                     return
 
@@ -411,7 +471,6 @@ def main():
                     
                     elif event.key == pygame.K_4 and weapon[3] and reload_status==False:
                         current_weapon=3
-                        player.change_image(3)
                     
                     elif event.key == pygame.K_5 and weapon[4] and reload_status==False:
                         current_weapon=4
@@ -703,13 +762,14 @@ def main():
                                (bullet_img,bullet_hitbox,player,zombieGroup,powerupGroup,\
                                 reloading,health,armour,health_text,armour_text,wave_text,ammo_text)
         
-            # If health is less than or equal to 0, show the Game Over screen
             if player_status[0][0] <= 0:
-                game_over_screen(screen)  # Show the Game Over screen
-                break  # Restart the game loop
+                print("Game Over triggered!")  # Debugging
+                pygame.mixer.music.stop()
+                game_over_screen(screen)
+                print("Returned from Game Over Screen") 
 
             # Refresh screen
-            screen.blit(background,(0,0))
+            screen.blit(background, (0, 0))
             allSprites.update()
             allSprites.draw(screen)
          
