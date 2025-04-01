@@ -60,49 +60,59 @@ def loading_screen(screen):
     pygame.time.delay(2000)  # Simulate loading time
 
 def main_menu(screen):
-    '''Displays the main menu with a Classic mode option.'''
-    font = pygame.font.Font("American Captain.ttf", 100)  # Use American Captain font
-    option_font = pygame.font.Font("American Captain.ttf", 50)  # Use American Captain font
+    '''Displays the main menu with game mode options.'''
+    font = pygame.font.Font("American Captain.ttf", 100)
+    option_font = pygame.font.Font("American Captain.ttf", 50)
     title_text = font.render("Undead Siege", True, (255, 255, 255))
     classic_text = option_font.render("Classic Mode", True, (255, 255, 255))
-    classic_rect = classic_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 + 50))
+    time_rush_text = option_font.render("Time Rush Mode", True, (255, 255, 255))
+    endless_text = option_font.render("Endless Horde Mode", True, (255, 255, 255))
 
-    # Load menu background image and sound
+    classic_rect = classic_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
+    time_rush_rect = time_rush_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 + 100))
+    endless_rect = endless_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 + 200))
+
     menu_bg = pygame.transform.scale(pygame.image.load('MenuBG.png'), (1280, 720))
     pygame.mixer.music.load("./sound/Menu soundtrack.mp3")
     pygame.mixer.music.set_volume(0.5)
     pygame.mixer.music.play(-1)
 
-    # Load hover and click sounds
     hover_sound = pygame.mixer.Sound("./sound/Button hover.ogg")
     click_sound = pygame.mixer.Sound("./sound/Button click.mp3")
-    hovered = False  # Track hover state
+    hovered = None
 
     while True:
-        screen.blit(menu_bg, (0, 0))  # Display menu background
-        screen.blit(title_text, (screen.get_width() // 2 - title_text.get_width() // 2, screen.get_height() // 2 - 100))
+        screen.blit(menu_bg, (0, 0))
+        screen.blit(title_text, (screen.get_width() // 2 - title_text.get_width() // 2, screen.get_height() // 2 - 200))
 
-        # Check for hover effect
-        if classic_rect.collidepoint(pygame.mouse.get_pos()):
-            if not hovered:
-                hover_sound.play()  # Play hover sound only once
-                hovered = True
-            pygame.draw.rect(screen, (255, 215, 0), classic_rect.inflate(30, 15))  # Toggle button style
-        else:
-            hovered = False
-            pygame.draw.rect(screen, (139, 69, 19), classic_rect.inflate(30, 15))  # Default button style
-
-        screen.blit(classic_text, classic_rect)
+        for rect, text in [(classic_rect, classic_text), (time_rush_rect, time_rush_text), (endless_rect, endless_text)]:
+            if rect.collidepoint(pygame.mouse.get_pos()):
+                if hovered != rect:
+                    hover_sound.play()
+                    hovered = rect
+                pygame.draw.rect(screen, (255, 215, 0), rect.inflate(30, 15))
+            else:
+                pygame.draw.rect(screen, (139, 69, 19), rect.inflate(30, 15))
+            screen.blit(text, rect)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            elif event.type == pygame.MOUSEBUTTONDOWN and classic_rect.collidepoint(event.pos):
-                click_sound.play()  # Play click sound
-                pygame.mixer.music.stop()  # Stop menu music
-                loading_screen(screen)  # Show loading screen before starting the game
-                return  # Start the game
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if classic_rect.collidepoint(event.pos):
+                    click_sound.play()
+                    pygame.mixer.music.stop()
+                    loading_screen(screen)
+                    return  # Start Classic Mode
+                elif time_rush_rect.collidepoint(event.pos):
+                    click_sound.play()
+                    pygame.mixer.music.stop()
+                    time_rush_mode(screen)
+                elif endless_rect.collidepoint(event.pos):
+                    click_sound.play()
+                    pygame.mixer.music.stop()
+                    endless_horde_mode(screen)
 
         pygame.display.flip()
 
@@ -163,6 +173,95 @@ def pause_menu(screen):
                     main_menu(screen)  # Go back to the main menu
                     return
 
+        pygame.display.flip()
+
+def time_rush_mode(screen, time_limit=300):
+    '''Time Rush Mode: Survive until the timer runs out.'''
+    font = pygame.font.Font("American Captain.ttf", 50)
+    timer_text = sprite_module.Text(30, (255, 255, 255), (screen.get_width() // 2, 50), str(time_limit), "Time Left: %s", 255)
+
+    # Set up maximum difficulty zombies
+    z_img = [pygame.image.load('./enemy/' + file) for file in os.listdir('enemy/')]
+    z_info = [[6, 10, 50, 50, 10]]  # High-speed, high-damage zombies
+    zombies = [sprite_module.Zombie(screen, *z_info[0], z_img[0], 0, (640, 360)) for _ in range(20)]
+    zombieGroup = pygame.sprite.Group(zombies)
+
+    # Initialize player and other entities
+    player = sprite_module.Player(screen)
+    allSprites = pygame.sprite.OrderedUpdates(player, zombieGroup, timer_text)
+
+    clock = pygame.time.Clock()
+    start_time = pygame.time.get_ticks()
+    keepGoing = True
+
+    while keepGoing:
+        clock.tick(40)
+        elapsed_time = (pygame.time.get_ticks() - start_time) // 1000
+        remaining_time = time_limit - elapsed_time
+        timer_text.set_variable(0, str(remaining_time))
+
+        if remaining_time <= 0:
+            print("Time's up!")
+            game_over_screen(screen)
+            return
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pause_menu(screen)
+
+        # Update and draw sprites
+        allSprites.update()
+        screen.fill((0, 0, 0))
+        allSprites.draw(screen)
+        pygame.display.flip()
+
+def endless_horde_mode(screen):
+    '''Endless Horde Mode: Survive as long as possible.'''
+    font = pygame.font.Font("American Captain.ttf", 50)
+    score_text = sprite_module.Text(30, (255, 255, 255), (screen.get_width() // 2, 50), "0", "Score: %s", 255)
+
+    # Initialize player and other entities
+    player = sprite_module.Player(screen)
+    zombieGroup = pygame.sprite.Group()
+    allSprites = pygame.sprite.OrderedUpdates(player, zombieGroup, score_text)
+
+    clock = pygame.time.Clock()
+    spawn_timer = 0
+    score = 0
+    difficulty = 1
+
+    keepGoing = True
+    while keepGoing:
+        clock.tick(40)
+        spawn_timer += 1
+
+        # Spawn zombies based on difficulty
+        if spawn_timer % (40 // difficulty) == 0:
+            z_img = [pygame.image.load('./enemy/' + file) for file in os.listdir('enemy/')]
+            z_info = [[3 + difficulty, 5 + difficulty, 10 + difficulty, 100, 2 + difficulty]]
+            zombie = sprite_module.Zombie(screen, *z_info[0], z_img[0], 0, player.rect.center)
+            zombieGroup.add(zombie)
+            allSprites.add(zombie)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pause_menu(screen)
+
+        # Update score and difficulty
+        score += 1
+        difficulty = min(10, score // 100 + 1)  # Increase difficulty over time
+        score_text.set_variable(0, str(score))
+
+        # Update and draw sprites
+        allSprites.update()
+        screen.fill((0, 0, 0))
+        allSprites.draw(screen)
         pygame.display.flip()
 
 def main():
