@@ -2,7 +2,7 @@
 import pygame, pygame.locals, sprite_module, random, os
 pygame.init()
 pygame.mixer.init()
-screen = pygame.display.set_mode((1500, 850))  
+screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
             
 def game_over_screen(screen):
     '''Displays the Game Over screen with a retry button, background, and sound.'''
