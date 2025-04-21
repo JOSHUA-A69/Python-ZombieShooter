@@ -344,32 +344,77 @@ def time_rush_mode(screen, time_limit=300):
             pygame.display.flip()
 
 def endless_horde_mode(screen):
-    '''Endless Horde Mode: Survive as long as possible.'''
-    font = pygame.font.Font("American Captain.ttf", 50)
+    '''Endless Horde Mode: Survive as long as possible with continuously increasing difficulty.'''
+    # Initialize game elements
+    background = pygame.transform.scale(pygame.image.load('./img/bg.jpg'), (1920, 1080))
+    background = background.convert()
+    
+    # Music setup
+    pygame.mixer.music.load("./sound/InGame soundtrack.mp3")
+    pygame.mixer.music.set_volume(0.5)
+    pygame.mixer.music.play(-1)
+    fire = pygame.mixer.Sound("./sound/bullet1.ogg")
+    fire.set_volume(0.5)
+
+    # Initialize player and status
+    player = sprite_module.Player(screen)
+    player.rect.center = (screen.get_width() // 2, screen.get_height() // 2)
+    player_status = [[350, 350], [200, 200], 3]
+
+    # Status bars and text
+    health = sprite_module.StatusBar((10, 10), (255, 0, 0), (0, 0, 0), (250, 30), 350, 350, 0, None)
+    armour = sprite_module.StatusBar((10, 50), (238, 233, 233), (139, 137, 137), (250, 30), 200, 200, 0, None)
+    health_text = sprite_module.Text(25, (255, 255, 255), (135, 25), '350,350', '%s/%s', 255)
+    armour_text = sprite_module.Text(25, (0, 0, 0), (135, 65), '200,200', '%s/%s', 255)
     score_text = sprite_module.Text(30, (255, 255, 255), (screen.get_width() // 2, 50), "0", "Score: %s", 255)
 
-    # Initialize player and other entities
-    player = sprite_module.Player(screen)
-    zombieGroup = pygame.sprite.Group()
-    allSprites = pygame.sprite.OrderedUpdates(player, zombieGroup, score_text)
+    # Load images
+    bullet_images = [pygame.image.load('./bullets/' + file) for file in os.listdir('bullets/')]
+    z_img = [pygame.image.load('./enemy/' + file) for file in os.listdir('enemy/')]
 
+    # Sprite groups
+    zombieGroup = pygame.sprite.Group()
+    bullet_img = pygame.sprite.Group()
+    bullet_hitbox = pygame.sprite.Group()
+    powerupGroup = pygame.sprite.Group()
+
+    # Initialize sprite groups
+    allSprites = pygame.sprite.OrderedUpdates(bullet_img, bullet_hitbox, player, zombieGroup, 
+                                            powerupGroup, health, armour, health_text, 
+                                            armour_text, score_text)
+
+    # Game variables
     clock = pygame.time.Clock()
     spawn_timer = 0
     score = 0
-    difficulty = 1
-
+    difficulty_multiplier = 1.0
     keepGoing = True
+
     while keepGoing:
         clock.tick(40)
         spawn_timer += 1
 
-        # Spawn zombies based on difficulty
-        if spawn_timer % (40 // difficulty) == 0:
-            z_img = [pygame.image.load('./enemy/' + file) for file in os.listdir('enemy/')]
-            z_info = [[3 + difficulty, 5 + difficulty, 10 + difficulty, 100, 2 + difficulty]]
-            zombie = sprite_module.Zombie(screen, *z_info[0], z_img[0], 0, player.rect.center)
+        # Spawn zombies with increasing difficulty based on score
+        if spawn_timer >= max(5, 30 - score//500):  # Spawn rate increases with score
+            spawn_timer = 0
+            zombie_type = random.randint(0, min(len(z_img)-1, score//1000))  # More zombie types as score increases
+            zombie_stats = [
+                3 + score//1000,  # Speed increases with score
+                5 + score//500,   # Damage increases with score
+                50 + score//100,  # Health increases with score
+                50,              # Attack speed
+                10 + score//200  # Score value increases with difficulty
+            ]
+            zombie = sprite_module.Zombie(screen, *zombie_stats, z_img[zombie_type], 0, player.rect.center)
             zombieGroup.add(zombie)
             allSprites.add(zombie)
+
+        # Handle input
+        keystate = pygame.key.get_pressed()
+        if keystate[pygame.locals.K_w]: player.go_up(screen)
+        if keystate[pygame.locals.K_s]: player.go_down(screen)
+        if keystate[pygame.locals.K_a]: player.go_left(screen)
+        if keystate[pygame.locals.K_d]: player.go_right(screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -377,15 +422,62 @@ def endless_horde_mode(screen):
                 exit()
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 pause_menu(screen)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                # Shooting mechanism
+                bullet1 = sprite_module.Bullet(bullet_images[0], player.get_angle(), 
+                                            player.rect.center, pygame.mouse.get_pos(), 12, 10, False)
+                bullet2 = sprite_module.Bullet(None, None, player.rect.center, 
+                                            pygame.mouse.get_pos(), 12, 10, False)
+                bullet_img.add(bullet1)
+                bullet_hitbox.add(bullet2)
+                allSprites = pygame.sprite.OrderedUpdates(bullet_img, bullet_hitbox, player, 
+                                                        zombieGroup, powerupGroup, health, armour,
+                                                        health_text, armour_text, score_text)
+                fire.play()
 
-        # Update score and difficulty
-        score += 1
-        difficulty = min(10, score // 100 + 1)
+        # Update player rotation
+        player.rotate(pygame.mouse.get_pos())
+
+        # Handle collisions
+        if pygame.sprite.spritecollide(player, zombieGroup, False):
+            if player_status[1][0] > 0:  # If there's armor
+                player_status[1][0] -= 5  # Damage armor first
+                if player_status[1][0] < 0:
+                    player_status[0][0] += player_status[1][0]
+                    player_status[1][0] = 0
+            else:  # No armor, damage health directly
+                player_status[0][0] -= 5
+
+            # Update displays
+            armour.set_status(player_status[1][0])
+            armour_text.set_variable(0, str(player_status[1][0]))
+
+            if player_status[0][0] <= 0:
+                pygame.mixer.music.stop()
+                pygame.mixer.music.unload()
+                if game_over_screen(screen):
+                    return
+                break
+
+        # Handle zombie kills and scoring
+        hits = pygame.sprite.groupcollide(bullet_hitbox, zombieGroup, True, True)
+        for hit in hits:
+            score += 10
+            difficulty_multiplier = 1.0 + (score / 1000)  # Increase difficulty with score
+
+        # Update displays
         score_text.set_variable(0, str(score))
+        health.set_status(player_status[0][0])
+        health_text.set_variable(0, str(player_status[0][0]))
 
-        # Update and draw sprites
+        # Update zombies
+        for zombie in zombieGroup:
+            zombie.rotate(player.rect.center)
+            zombie.set_step_amount(player.rect.center)
+
+        # Draw everything
+        screen.blit(background, (0, 0))
         allSprites.update()
-        screen.fill((0, 0, 0))
         allSprites.draw(screen)
         pygame.display.flip()
 
