@@ -621,8 +621,6 @@ def main():
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         pause_menu(screen)
-                    elif event.key == pygame.K_p:
-                        pause_menu(screen)
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if current_weapon == 0 and ammo[0][0]:
