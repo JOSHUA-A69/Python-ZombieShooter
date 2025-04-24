@@ -111,17 +111,24 @@ class Zombie(pygame.sprite.Sprite):
         self.__screen=screen
         
         #Assign speed to a variable
-        self.__speed=speed
-        self.__default_speed=speed
+        # Apply 20% speed reduction
+        self.__speed = speed * 0.8
+        self.__default_speed = speed * 0.8
         
         #Assign the bullet damage to a variable
         self.__damage=damage
         
         #Assign hp to a variable
-        self.__hp=hp
+        self.__max_hp = hp  # Store max HP for health bar calculation
+        self.__hp = hp
         
         #Assign attack speed to a variable
-        self.__attack_speed=attack_speed
+        self.__attack_speed = attack_speed
+
+        # Create health bar surface with transparency
+        self.__health_bar_width = 40
+        self.__health_bar_height = 5
+        self.__health_bar = pygame.Surface((self.__health_bar_width, self.__health_bar_height), pygame.SRCALPHA)
         
         #Assign value to a variable
         self.__value=value
@@ -252,12 +259,39 @@ class Zombie(pygame.sprite.Sprite):
                 self.__speed=self.__default_speed
                 self.__slow_counter=0
                 self.__slow=False
+
+        # Update health bar
+        self.__health_bar.fill((0, 0, 0, 0))  # Clear with transparency
+        
+        # Draw black outline
+        pygame.draw.rect(self.__health_bar, (0, 0, 0, 255), 
+                        (0, 0, self.__health_bar_width, self.__health_bar_height))
+        
+        # Draw red background
+        pygame.draw.rect(self.__health_bar, (255, 0, 0, 255), 
+                        (1, 1, self.__health_bar_width-2, self.__health_bar_height-2))
+        
+        # Draw green health remaining
+        health_percentage = self.__hp / self.__max_hp
+        if health_percentage > 0:
+            green_width = int((self.__health_bar_width-2) * health_percentage)
+            if green_width > 0:  # Ensure we don't draw if width rounds to 0
+                pygame.draw.rect(self.__health_bar, (0, 255, 0, 255),
+                               (1, 1, green_width, self.__health_bar_height-2))
+        
+        # Draw health bar above zombie
+        health_pos = (self.rect.centerx - self.__health_bar_width // 2,
+                     self.rect.top - 10)
+        self.__screen.blit(self.__health_bar, health_pos)
      
 class Player(pygame.sprite.Sprite):
     '''player class creates a list of image of the different weapons. it accepts
     mouse positon for rotation and has methods to move the rect'''
     def __init__(self,screen):
         pygame.sprite.Sprite.__init__(self)
+        
+        # Initialize gold
+        self.__gold = 0
         
         #Create list of images
         self.__list = []
@@ -279,6 +313,14 @@ class Player(pygame.sprite.Sprite):
         
         #set the angle value
         self.__angle=0
+    
+    def get_gold(self):
+        '''returns the player's gold'''
+        return self.__gold
+    
+    def add_gold(self, amount):
+        '''adds gold to the player'''
+        self.__gold += amount
     
     def reset_speed(self):
         '''reset speed to default'''
@@ -392,7 +434,11 @@ class Bullet(pygame.sprite.Sprite):
         '''move the rect and if it goes off screen, it is killed'''
         self.rect.centerx+=self.__dx
         self.rect.centery+=self.__dy
-        if self.rect.top<0 or self.rect.bottom>620 or self.rect.left<0 or self.rect.right>1280:
+        # Get the screen dimensions from the rect since we don't have direct screen access
+        screen_width = 1920  # Full screen width
+        screen_height = 1080  # Full screen height
+        if (self.rect.top < 0 or self.rect.bottom > screen_height or 
+            self.rect.left < 0 or self.rect.right > screen_width):
             self.kill()
         
 class RailGun(pygame.sprite.Sprite):
