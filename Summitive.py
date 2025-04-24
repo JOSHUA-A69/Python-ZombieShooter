@@ -1,4 +1,5 @@
 # I - Import and Initialize
+# Major patches and fixes
 import pygame, pygame.locals, sprite_module, random, os
 pygame.init()
 pygame.mixer.init()
